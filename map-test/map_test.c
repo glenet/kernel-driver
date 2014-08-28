@@ -2,6 +2,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <asm/page.h>
+#include <asm/pgtable.h>
 
 #define N_PAGES 8
 #define SIZE (PAGE_SIZE / 4)
@@ -40,11 +41,14 @@ static void setup_src(void *src, int size)
 }
 
 //Test 1: use vmap to get the virtual address
-static void testsuit_1(struct page* psrc, struct page* pdst)
+static void testsuit_1(struct page* psrc, struct page* pdst, int isCached)
 {
 	void *src = NULL, *dst = NULL;
 	pgprot_t prot = PAGE_KERNEL;
-	prot = pgprot_writecombine(prot);
+	if (isCached)
+		prot = pgprot_writecombine(prot);
+	else
+		prot = pgprot_noncached(prot);
 
 	src = vmap(&psrc, 1, 0, prot);
 	if (!src) {
@@ -71,11 +75,14 @@ fail_s:
 	vunmap(src);
 }
 
-static void testsuit_2(struct page* psrc, struct page* pdst)
+static void testsuit_2(struct page* psrc, struct page* pdst, int isCached)
 {
 	void *src = NULL, *dst = NULL;
 	pgprot_t prot = PAGE_KERNEL;
-	prot = pgprot_writecombine(prot);
+	if (isCached)
+		prot = pgprot_writecombine(prot);
+	else
+		prot = pgprot_noncached(prot);
 
 	src = vm_map_ram(&psrc, 1, -1, prot);
 	if (!src) {
@@ -105,11 +112,14 @@ fail_s:
 	vm_unmap_ram(src, 1);
 }
 
-static void testsuit_3(struct page* psrc[], struct page* pdst[])
+static void testsuit_3(struct page* psrc[], struct page* pdst[], int isCached)
 {
 	void *src = NULL, *dst = NULL;
 	pgprot_t prot = PAGE_KERNEL;
-	prot = pgprot_writecombine(prot);
+	if (isCached)
+		prot = pgprot_writecombine(prot);
+	else
+		prot = pgprot_noncached(prot);
 
 	src = vmap(psrc, N_PAGES, 0, prot);
 	if (!src) {
@@ -136,11 +146,14 @@ fail_s:
 	vunmap(src);
 }
 
-static void testsuit_4(struct page* psrc[], struct page* pdst[])
+static void testsuit_4(struct page* psrc[], struct page* pdst[], int isCached)
 {
 	void *src = NULL, *dst = NULL;
 	pgprot_t prot = PAGE_KERNEL;
-	prot = pgprot_writecombine(prot);
+	if (isCached)
+		prot = pgprot_writecombine(prot);
+	else
+		prot = pgprot_noncached(prot);
 
 	src = vm_map_ram(psrc, N_PAGES, -1, prot);
 	if (!src) {
@@ -217,10 +230,14 @@ static int __init map_test_init(void)
 		psl[i] = p2;
 	}
 
-	testsuit_1(pf, ps);
-	testsuit_2(pf, ps);
-	testsuit_3(pfl, psl);
-	testsuit_4(pfl, psl);
+	testsuit_1(pf, ps, 1);
+	testsuit_2(pf, ps, 1);
+	testsuit_3(pfl, psl, 1);
+	testsuit_4(pfl, psl, 1);
+	testsuit_1(pf, ps, 0);
+	testsuit_2(pf, ps, 0);
+	testsuit_3(pfl, psl, 0);
+	testsuit_4(pfl, psl, 0);
 
 fail_free_psl:
 	for (i = 0; i < N_PAGES; i++) {
